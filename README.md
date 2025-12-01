@@ -8,6 +8,20 @@
 - [Architecture](#architecture)
    - [Proto](#proto)
    - [build.rs](#buildrs)
+   - [OUT_DIR Problem](#out_dir-problem)
+   - [Dependencies Problem](#dependencies-problem)
+
+- [Appendix](#appendix)  
+
+---
+## How to test
+
+(first build the packages by going through the instruction below).
+
+After you make sure ```cargo build``` at the project root is successful, 
+
+
+
 
 ---
 ## Motivation
@@ -404,11 +418,22 @@ But at the moment, it is unfortunately a least problematic solution.
 
 ### Dependencies Problem
 
+The Rust crate, tonic, takes care of gRPC communication. 
 
+The amazing stuff to build hello.rs from hellor.proto has been done 
+by prost's part of tonic Rust crates. 
 
+In order to use prost, we have to include the dependencies, 
 
+- tonic
+- tonic-prost
+- prost
 
+all of them. One can check the lates version  at https://crates.io/crates/tonic or https://github.com/hyperium/tonic.
 
+---
+## Test 
+See at the top. 
 
 
 ---
