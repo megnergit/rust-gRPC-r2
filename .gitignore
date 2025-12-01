@@ -4,6 +4,7 @@
 RUST_GRPC
 .*~
 #*#
+README
 
 # ----------------------------
 # Rust / Cargo
