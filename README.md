@@ -262,11 +262,163 @@ just declaratively writing ./proto/hello.proto. Wunderbar.
 ---
 ### ```build.rs```
 
-AWhen we execute 
+When we execute ```cargo build``` in the project root, cargo first looks at 
+Cargo.toml in the current directory, and checks ```members``` entry. 
+
+```sh
+$ cat Cargo.toml
+[workspace]
+members = [
+    "proto-defs",
+    "grpc-server",
+    "grpc-client"
+]
+resolver = "3"
+...
+```
+
+Then cargo checks the packages listed in ```members``` and Cargo.toml inside
+them, and figures out dependencies automatically. Then build the packages, 
+in our case starting from ```proto-defs``` as grpc-server and grpc-client both
+depend on ```proto-defs```, which has to be built beforehand. 
+
+To build the package ```proto-defs``` cargo looks at ```build.rs``` inside the 
+package directory,
+
+
+```sh
+$ cat proto-defs/build.rs
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    let out_dir = std::env::var("OUT_DIR")?;
+    println!("cargo:warning=OUT_DIR is : {}", out_dir);
+
+    tonic_prost_build::configure()
+    //    .out_dir(out_dir)
+        .build_server(true)
+        .build_client(true)
+        .out_dir(std::env::var("OUT_DIR").unwrap())
+//        .out_dir(out_dir)
+        .compile_protos(
+            &["../proto/hello.proto"],
+            &["../proto"],
+        )?;
+   Ok(())
+}
+```
+
+and build ```../proto/hello.proto``` into hello.rs. 
+
+Let us try it quickly.  First clean the previous build if there are,
+
+```sh
+$ cargo clean
+...
+```
+
+and build.
+
+```sh
+$ cargo build |
+   Compiling proc-macro2 v1.0.103
+   Compiling quote v1.0.42
+   Compiling unicode-ident v1.0.22
+   Compiling bytes v1.11.0
+....   
+   Compiling grpc-server v0.1.0 (/Users/meg/rust/rust-gRPC-r2/grpc-server)
+   Compiling grpc-client v0.1.0 (/Users/meg/rust/rust-gRPC-r2/grpc-client)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 56.71
+```
+
+This create ```hello.rs``` in the following folder. 
+
+```sh
+$ find . | grep hello.rs
+./target/debug/build/proto-defs-c9c645741b3a0923/out/hello.rs
+
+```
+
+It is not clear to me at the moment, why it choose `debug` directory with a hash. This hash seems unchanged, each time we build the packages. 
+
+
+### OUT_DIR Problem
+
+We will quickly discuss the point I got stuck. ```OUT_DIR```. 
+
+cargo build hello.rs in an anonymous directory. grpc-server and grpc-client 
+have to find the location in order to use it as a module / library. 
+
+I tried following. 
+
+1. try to refer hello.rs from src/main.rs of grpc-server/client. 
+
+```rust
+pub mod hello {
+   tonic::include_proto!("hello");
+}
+```
+This is the official way, but did not work. 
+
+2. set ```.out_dir``` in build.rs in proto-defs, and try to refer to it
+from src/main.rs of grpc-server/client. 
+-> does not work. cargo neglected it, and create hello.rs in just the same place. 
+
+3. copy hello.rs to ./src/generated/hello.rs of proto-defs and try to 
+refer to it from main.rs by naming it relative path
+```rust
+pub mod hello {
+   tonic::include_proto!("../proto-defs/src/generated/hello.rs");
+}
+```
+worked, but this is not the right way to do refer hello.rs, because we 
+have to move hello.rs each time we build it anew. 
+
+4. try to use ```OUT_DIR``` environment variable by specifying in main.rs,
+
+```rust
+pub mod hello {
+    include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+}
+```
+It did not work, because ```OUT_DIR``` is only defined while carbo is 
+building proto-defs package (= hello.rs), and is discarded afterwards. 
+
+5. remove include_proto at all and specify hello module in full path
+
+```sh
+use proto_defs::hello::greeter_client::GreeterClient;
+use proto_defs::hello::HelloRequest;
+```
+
+instead of 
+
+```sh
+use hello::greeter_client::GreeterClient;
+use hello::HelloRequest;
+```
+
+This is cumbersome, when we want to change the name of the package, proto-defs. 
+But at the moment, it is unfortunately a least problematic solution. 
+
+
+### Dependencies Problem
 
 
 
 
+
+
+
+
+---
+
+# Appendix 
+Logging
+
+```sh
+warning: proto-defs@0.1.0: OUT_DIR is : /Users/meg/rust/rust-gRPC-r2/target/debug/build/proto-defs-c9c645741b3a0923/out
+```
 
 
 ---
