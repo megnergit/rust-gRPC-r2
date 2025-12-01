@@ -16,9 +16,7 @@
 ---
 ## How to test
 
-<!--
 ![how to test](./images/grpc-1.gif)
--->
 
 (first please build the packages by going through the instruction below).
 
