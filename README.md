@@ -16,11 +16,35 @@
 ---
 ## How to test
 
-(first build the packages by going through the instruction below).
+<!--
+![how to test](./images/grpc-1.gif)
+-->
 
-After you make sure ```cargo build``` at the project root is successful, 
+(first please build the packages by going through the instruction below).
+
+After your build ```cargo build``` at the project root is successful, open a terminal and type in 
+
+```sh 
+$ cargo run --bin grpc-server
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.44s
+     Running `target/debug/grpc-server`
+gRPC Server listening on [::1]:50051
+
+```
+at the project root. 
+
+Open another terminal and type in 
 
 
+```sh
+
+$ cargo run --bin grpc-client
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running `target/debug/grpc-client`
+Response = Response { metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Mon, 01 Dec 2025 10:14:53 GMT", "grpc-status": "0"} }, message: HelloReply { message: "Hello Mia!" }, extensions: {} }
+```
+
+If successful, it returns a Response above. 
 
 
 ---
@@ -33,7 +57,7 @@ We will create
 - greeting server
 - greeting client
 
-and let client communicate to server via gRPC. 
+and let client communicate with server via gRPC. 
 
 ---
 ## Directory Structure
@@ -71,7 +95,7 @@ $ tree . -L 3
 ---
 ## Start Project 
 
-We will use cargo to create a rust project. We need 4 directories. 
+We will use ```cargo``` to create a rust project. We need 4 directories. 
 
 1. grcp-client
 2. grcp-server
@@ -79,13 +103,13 @@ We will use cargo to create a rust project. We need 4 directories.
 4. prroto-defs
 
 
-It sounds redundant, and may be wrong, but we need ```Cargo.toml``` in 
+It sounds redundant, and may be wrong, but we need ```Cargo.toml``` in all package directories,
 
 - grpc-client
 - grpc-server
 - proto-defs
 
-in addition to the project root. So, create projects for each. 
+in addition to the project root. So, first create a project for each. 
 
 First at the project root
 ```sh 
@@ -99,14 +123,9 @@ $ cargo new grpc-client
 $ cargo new proto-defs
 ```
 
-```cargo new ... ``` creates a new directory
-of the given name, and Cargo.toml in each of them. 
+```cargo new ... ``` creates a new directory of the given name, and Cargo.toml in each one of them. The last 3 of them, only point to (linked to) Cargo.toml at the project root, and looks almost identical. 
 
-However, the last 3 of them, only point
-to (linked to) Cargo.toml at the project root. 
-
-The one at project root looks like this.
-
+The one at the project root,
 ```sh
 $ cat Cargo.toml
 [workspace]
@@ -127,11 +146,7 @@ proto-defs = {path = "./proto-defs"}
 
 ```
 
-while all the others are identical, 
-only differs at package.name, which points
-to the package name itself, and 
-```proto-defs```, where proto-defs itself 
-does not require to point itself. 
+All the others only differ at package.name, which points to the package name itself, and relative path to ```proto-defs```, where proto-defs itself does not require pointing itself. 
 
 ```sh
 $ cat */Cargo.toml
@@ -150,17 +165,16 @@ tokio.workspace = true
 
 ```
 
+---
 ## Architecture
 
 ### Proto
 
-We will go back a bit and look at the architecture. 
+We will go back a bit and look at the architecture closely. 
 
-One impressive stuff in the combination of Rust + 
-gRPC is the function of ```proto```. 
+One impressive stuff in the combination of Rust + gRPC is the function of ```proto```. 
 
-
-proto only has one file in the directory.
+```proto``` only has one file in the directory.
 
 ```sh
 $ cat proto/hello.proto
@@ -183,11 +197,9 @@ message HelloReply{
 
 The first entry ```service Greeter``` defines what this gRPC service does, namely, it receives ```HelloRequest``` and returns ```HelloReply```. 
 
-The second and the third entries define what ```HelloRequest``` and ```HelloReply```, namely, they have one string, 'name' in ```HelloRequest``` messageand 'meesage' in ```HelloReply```. 　The name of API method is ```SayHello```.
+The second and the third entries define what ```HelloRequest``` and ```HelloReply``` are, namely, they have one string, 'name' in ```HelloRequest``` message and 'meesage' in ```HelloReply``` message. 　The name of the API method is ```SayHello```.
 
-
-**AND** this short script create whole server and client
-plus Rust structures in a new code ```hello.rs```. 
+This short script create whole server and client pair plus Rust structures in a new code ```hello.rs```. 
 
 Let us look at a part of ```hello.rs``` (built beforehand. 
 We will discuss how to build it later). 
@@ -439,10 +451,50 @@ See at the top.
 ---
 
 # Appendix 
-Logging
+## How to use stdout/stderr during ```cargo build```
+
+I wanted to see if the environment variable ```OUT_DIR``` is correctly 
+defined. I tried the following in ./proto-defs/build.rs.
+
+1. println!
 
 ```sh
+println!("OUT_DIR = {:?}", std::env::var("OUT_DIR"));
+```
+
+did not work. 
+
+2. eprintln!
+```sh
+eprintln!("OUT_DIR = {:?}", std::env::var("OUT_DIR"));
+```
+did not work.
+
+
+3. eprintln! + enf!
+```sh
+eprintln!("OUT_DIR = {:?}", (env!("OUT_DIR")))
+```
+did not work.
+
+4. cargo:warning=
+
+```sh
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let out_dir = std::env::var("OUT_DIR")?;
+    println!("cargo:warning=OUT_DIR is {}", out_dir);
+
+    tonic_build::compile_protos("proto/hello.proto", &["proto"])?;
+    Ok(())
+}
+```
+
+worked like this.
+
+```sh
+...
 warning: proto-defs@0.1.0: OUT_DIR is : /Users/meg/rust/rust-gRPC-r2/target/debug/build/proto-defs-c9c645741b3a0923/out
+...
 ```
 
 
