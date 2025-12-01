@@ -2,6 +2,12 @@
 
 ## Table of Contents
 
+- [Motivation](#motivation)
+- [Directory Structure](#directory-structure)
+- [Start Project](#start-project)
+- [Architecture](#architecture)
+   - [Proto](#proto)
+   - [build.rs](#buildrs)
 
 ---
 ## Motivation
@@ -49,7 +55,7 @@ $ tree . -L 3
 
 
 ---
-## Start project 
+## Start Project 
 
 We will use cargo to create a rust project. We need 4 directories. 
 
@@ -253,9 +259,13 @@ $ wc ./target/debug/build/proto-defs-c9c645741b3a0923/out/hello.rs
 ```hello.rs``` code is about 300 line long, and this is crated automatically by 
 just declaratively writing ./proto/hello.proto. Wunderbar. 
 
+---
+### ```build.rs```
+
+AWhen we execute 
 
 
-## Source code
+
 
 
 
