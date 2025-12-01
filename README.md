@@ -120,7 +120,7 @@ Then, create each package,
 ```sh 
 $ cargo new grpc-server 
 $ cargo new grpc-client
-$ cargo new proto-defs
+$ cargo new proto-defs --lib
 ```
 
 ```cargo new ... ``` creates a new directory of the given name, and Cargo.toml in each one of them. The last 3 of them, only point to (linked to) Cargo.toml at the project root, and looks almost identical. 
@@ -201,7 +201,7 @@ The second and the third entries define what ```HelloRequest``` and ```HelloRepl
 
 This short script create whole server and client pair plus Rust structures in a new code ```hello.rs```. 
 
-Let us look at a part of ```hello.rs``` (built beforehand. 
+Let us look at ```hello.rs``` (built beforehand. 
 We will discuss how to build it later). 
 
 ```sh
@@ -224,7 +224,7 @@ pub struct HelloReply {
 
 ```
 
-Here Rust structures are defined in the syntax of Rust. 
+Here Rust structures are defined with the syntax of Rust. 
 
 ```sh
 
@@ -282,7 +282,7 @@ $ wc ./target/debug/build/proto-defs-c9c645741b3a0923/out/hello.rs
      299     843   11859 ./target/debug/build/proto-defs-c9c645741b3a0923/out/hello.rs
 
 ```     
-```hello.rs``` code is about 300 line long, and this is crated automatically by 
+```hello.rs``` code is about 300 line long, and this is created automatically by 
 just declaratively writing ./proto/hello.proto. Wunderbar. 
 
 ---
@@ -304,12 +304,9 @@ resolver = "3"
 ```
 
 Then cargo checks the packages listed in ```members``` and Cargo.toml inside
-them, and figures out dependencies automatically. Then build the packages, 
-in our case starting from ```proto-defs``` as grpc-server and grpc-client both
-depend on ```proto-defs```, which has to be built beforehand. 
+them, and figures out the dependencies automatically. Then it builds the packages one by one, and in case it is possible, in parallel. In our case, cargo starts building ```proto-defs``` first, as both grpc-server and grpc-client depend on ```proto-defs```, which has to be built beforehand. 
 
-To build the package ```proto-defs``` cargo looks at ```build.rs``` inside the 
-package directory,
+To build the package ```proto-defs```, cargo looks at ```build.rs``` inside the package directory,
 
 
 ```sh
@@ -336,14 +333,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 and build ```../proto/hello.proto``` into hello.rs. 
 
-Let us try it quickly.  First clean the previous build if there are,
+Let us try it quickly.  First clean the previous build if there is,
 
 ```sh
 $ cargo clean
 ...
 ```
 
-and build.
+and build,
 
 ```sh
 $ cargo build |
@@ -357,7 +354,7 @@ $ cargo build |
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 56.71
 ```
 
-This create ```hello.rs``` in the following folder. 
+This creates ```hello.rs``` in the following folder. 
 
 ```sh
 $ find . | grep hello.rs
@@ -365,14 +362,13 @@ $ find . | grep hello.rs
 
 ```
 
-It is not clear to me at the moment, why it choose `debug` directory with a hash. This hash seems unchanged, each time we build the packages. 
-
+It is not clear to me at the moment, why it choose `debug` directory with a hash. This hash seems unchanged, each time we repeat building the packages. 
 
 ### OUT_DIR Problem
 
-We will quickly discuss the point I got stuck. ```OUT_DIR```. 
+We will quickly discuss the point I got stuck, ```OUT_DIR```. 
 
-cargo build hello.rs in an anonymous directory. grpc-server and grpc-client 
+cargo builds hello.rs in an anonymous directory. grpc-server and grpc-client 
 have to find the location in order to use it as a module / library. 
 
 I tried following. 
@@ -384,23 +380,23 @@ pub mod hello {
    tonic::include_proto!("hello");
 }
 ```
-This is the official way, but did not work. 
+This is the official way in the documentation, but did not work. 
 
 2. set ```.out_dir``` in build.rs in proto-defs, and try to refer to it
 from src/main.rs of grpc-server/client. 
 -> does not work. cargo neglected it, and create hello.rs in just the same place. 
 
 3. copy hello.rs to ./src/generated/hello.rs of proto-defs and try to 
-refer to it from main.rs by naming it relative path
+refer it from main.rs by naming it specifically by the relative path
 ```rust
 pub mod hello {
    tonic::include_proto!("../proto-defs/src/generated/hello.rs");
 }
 ```
-worked, but this is not the right way to do refer hello.rs, because we 
+It worked, but this is not the right way to refer hello.rs, because we 
 have to move hello.rs each time we build it anew. 
 
-4. try to use ```OUT_DIR``` environment variable by specifying in main.rs,
+4. try to use ```OUT_DIR``` environment variable by specifying it in main.rs,
 
 ```rust
 pub mod hello {
@@ -410,7 +406,7 @@ pub mod hello {
 It did not work, because ```OUT_DIR``` is only defined while carbo is 
 building proto-defs package (= hello.rs), and is discarded afterwards. 
 
-5. remove include_proto at all and specify hello module in full path
+5. remove include_proto at all and specify hello module in full path from the package root (=```proto-defs```)
 
 ```sh
 use proto_defs::hello::greeter_client::GreeterClient;
@@ -424,37 +420,35 @@ use hello::greeter_client::GreeterClient;
 use hello::HelloRequest;
 ```
 
-This is cumbersome, when we want to change the name of the package, proto-defs. 
-But at the moment, it is unfortunately a least problematic solution. 
-
+This is cumbersome, when we want to change the name of the package, proto-defs. But at the moment, it is the least problematic solution. 
 
 ### Dependencies Problem
 
-The Rust crate, tonic, takes care of gRPC communication. 
+The Rust's crate, tonic, takes care of gRPC communication. 
 
-The amazing stuff to build hello.rs from hellor.proto has been done 
-by prost's part of tonic Rust crates. 
+The amazing stuff to create ```hello.rs``` from ```hello.proto``` has been done by prost.  Prost is a part of tonic. 
 
-In order to use prost, we have to include the dependencies, 
+In order to use prost, we have to include all the following dependencies, 
 
 - tonic
 - tonic-prost
 - prost
 
-all of them. One can check the lates version  at https://crates.io/crates/tonic or https://github.com/hyperium/tonic.
+One can check the lates version  at https://crates.io/crates/tonic or https://github.com/hyperium/tonic.
 
 ---
 ## Test 
-See at the top. 
-
+See at the top of this documentation (#).
 
 ---
 
 # Appendix 
 ## How to use stdout/stderr during ```cargo build```
 
-I wanted to see if the environment variable ```OUT_DIR``` is correctly 
-defined. I tried the following in ./proto-defs/build.rs.
+I wanted to see if the environment variable ```OUT_DIR``` 
+is correctly defined inside  ```./proto-defs/build.rs```.
+
+I tried the following,
 
 1. println!
 
@@ -469,7 +463,6 @@ did not work.
 eprintln!("OUT_DIR = {:?}", std::env::var("OUT_DIR"));
 ```
 did not work.
-
 
 3. eprintln! + enf!
 ```sh
@@ -501,5 +494,4 @@ warning: proto-defs@0.1.0: OUT_DIR is : /Users/meg/rust/rust-gRPC-r2/target/debu
 ---
 # END
 ---
-cargo new proto-defs --lib
 
