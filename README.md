@@ -47,4 +47,3 @@ $ touch proto/hello.proto
 ---
 cargo new proto-defs --lib
 
-（※ src/generated/ は .gitignore に入れると良い）
