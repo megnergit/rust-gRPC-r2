@@ -1,0 +1,13 @@
+[package]
+name = "grpc-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+proto-defs = { path= "../proto-defs" }
+tonic.workspace = true
+tonic-prost.workspace = true
+prost.workspace = true
+tokio.workspace = true
+#A prost-derive.workspace = true
+
